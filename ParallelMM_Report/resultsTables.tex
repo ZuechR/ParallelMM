@@ -1,0 +1,65 @@
+\begin{table}[!ht]
+    \centering
+    \caption{Execution time of the sequential and parallel algorithms for different matrices sizes and number of processors $P$.}
+    \begin{subtable}{.45\linewidth}
+        \centering
+        \caption{$\textbf{A}$ \& $\textbf{B}$ of size 512x512}
+        \begin{tabular}{r|r|r}
+            \textbf{P} & \textbf{T\_comm} & \textbf{T\_comp} \\ \hline
+            \textbf{Seq} & 0 & 50.003 \\ \hline
+            \textbf{1} & 1.674681 & 50.461275 \\ \hline
+            \textbf{2} & 11.206590 & 25.225144 \\ \hline
+            \textbf{4} & 16.922512 & 12.566901 \\ \hline
+            \textbf{8} & 32.924253 & 6.344639 \\ \hline
+            \textbf{16} & 148.222790 & 3.223668 \\ \hline
+            \textbf{32} & 174.169211 & 1.710644 \\ 
+        \end{tabular}
+    \end{subtable}
+    \begin{subtable}{.45\linewidth}
+        \centering
+        \caption{$\textbf{A}$ \& $\textbf{B}$ of size 1024x1024}
+        \begin{tabular}{r|r|r}
+            \textbf{P} & \textbf{T\_comm} & \textbf{T\_comp} \\ \hline
+            \textbf{Seq} & 0 & 388.730 \\ \hline
+            \textbf{1} & 4.030184 & 387.597033 \\ \hline
+            \textbf{2} & 19.815538 & 195.856201 \\ \hline
+            \textbf{4} & 32.914310 & 101.572801 \\ \hline
+            \textbf{8} & 51.866337 & 60.452539 \\ \hline
+            \textbf{16} & 199.891284 & 38.215937 \\ \hline
+            \textbf{32} & 300.292535 & 12.898068 \\ 
+        \end{tabular}
+    
+    \end{subtable}
+    \begin{subtable}{.45\linewidth}
+        \centering
+        \caption{$\textbf{A}$ \& $\textbf{B}$ of size 2048x2048}
+        \begin{tabular}{r|r|r}
+            \textbf{P} & \textbf{T\_comm} & \textbf{T\_comp} \\ \hline
+            \textbf{Seq} & 0 & 3768.356 \\ \hline
+            \textbf{1} & 13.511889 & 3819.322627 \\ \hline
+            \textbf{2} & 70.904731 & 2941.665213 \\ \hline
+            \textbf{4} & 67.533221 & 1335.798456 \\ \hline
+            \textbf{8} & 138.074651 & 707.863888 \\ \hline
+            \textbf{16} & 123.805203 & 338.441502 \\ \hline
+            \textbf{32} & 275.721030 & 139.956284 \\ 
+        \end{tabular}
+    
+    \end{subtable}
+    \begin{subtable}{.45\linewidth}
+        \centering
+        \caption{$\textbf{A}$ \& $\textbf{B}$ of size 4096x4096}
+        \begin{tabular}{r|r|r}
+            \textbf{P} & \textbf{T\_comm} & \textbf{T\_comp} \\ \hline
+            \textbf{Seq} & 0 & 50192.182 \\ \hline
+            \textbf{1} & 54.562895 & 51104.039326 \\ \hline
+            \textbf{2} & 114.210136 & 25177.496365 \\ \hline
+            \textbf{4} & 251.198126 & 11896.659449 \\ \hline
+            \textbf{8} & 406.719612 & 6237.871031 \\ \hline
+            \textbf{16} & 244.012867 & 3085.359583 \\ \hline
+            \textbf{32} & 474.394116 & 1654.710260 \\ 
+        \end{tabular}
+    
+    \end{subtable}
+    
+    \label{tab:results}
+\end{table}

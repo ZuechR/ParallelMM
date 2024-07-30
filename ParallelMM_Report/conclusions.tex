@@ -1,0 +1,5 @@
+\section{Conclusions}
+
+This project allowed us to take on the task of developing a parallel algorithm to make more efficient the execution of a real-world common problem like matrix multiplication, as well as the non-trivial task of developing measures to analyse the results of our parallelization approach.
+
+In line with our expectation, we observed that a problem like matrix multiplication, which has an intrinsically high degree of parallelism, can achieve an ideal speed-up factor in parallel computation-only time over the sequential approach; however, as expected, the communication among processes required to enable the parallelization of the computation makes the whole algorithm not scalable indefinitely, thus the number of processors assigned should be considered carefully and, in particular, empirically, since in this very practical scenario a throughout analysis of the communication requirements is not possible.

@@ -1,0 +1,27 @@
+\section{Parallelization Approach}
+
+Our approach to parallelization derives from the observation that, given as "known" the matrix $\textbf{B}$, the rows of $\textbf{C}$ can be computed independently of each other on the base of the corresponding rows of $\textbf{A}$.
+
+Let us have $P$ processors under the SPMD paradigm, then our solution is based on defining a master process (the one with rank $0$) whose role is to:
+\begin{enumerate}
+    \item Initialize the values of matrix $\textbf{A}$ and $\textbf{B}$, then converting $\textbf{B}$ into $\textbf{B}^\top$.
+    \item Broadcast $\textbf{B}^\top$ to every other process using \texttt{MPI\_Bcast}.
+    \item Evenly distribute sets of adjacent rows of $\textbf{A}$ to each process (the master itself included) using \texttt{MPI\_Scatterv}. \\ Note that \texttt{MPI\_Scatterv} is used over \texttt{MPI\_Scatter} since we may have a number $M$ of rows that is not divisible by $P$; in this case we assign $\floor*{M/P} + 1$ rows to the first $M \textit{ mod } P$ processes, and then $\floor*{M/P}$ to the remaining ones.
+    \item Store the final output matrix $\textbf{C}$.
+\end{enumerate}
+
+Let us refer to $\textbf{A}_p$ as the set of adjacent rows of $\textbf{A}$ assigned to the process $p$, then we also define $\textbf{C}_p$ as the set of adjacent rows of $\textbf{C}$ produced by the process $p$ by calling the sequential algorithm for matrix multiplication on $\textbf{A}_p$ and $\textbf{B}^\top$.
+
+Then, as the final step, we use \texttt{MPI\_Gatherv} to gather the $\textbf{C}_p$ produced by each process into $\textbf{C}$ in the master process, in the correct order. We use \texttt{MPI\_Gatherv} over \texttt{MPI\_Gather} by the same argument discussed for \texttt{MPI\_Scatterv}.
+
+For the sake of brevity, we omit the technical discussion about the specifics of the implementation, which can be found in the repository.
+
+\subsection{Performance gain of parallelization}\label{ssec:pperform}
+
+It is straightforward to see that the execution time of our parallelized algorithm takes time $T_{\text{parallel}} = T_{\text{comp}} + T_{\text{comm}}$, where $T_{\text{comp}}$ is the time that the master process needs to compute $\textbf{C}_0$ (its portion of $\textbf{C}$) and $T_{\text{comm}}$ is the time spent for communication from the "point of view" of the master.
+
+On a theoretical level, we have $T_{\text{comp}}^p = \Theta(M/P \cdot N \cdot O)$ for any process $p$, since each process either receives $\floor*{M/P}$ or $\floor*{M/P} + 1$ rows of $\textbf{A}$. Essentially, excluding the communication time, the parallelization of the sequential algorithm allows achieving a theoretical speed-up factor of $P$.
+
+The analysis of the communication time instead is not easy and cannot be generalized to a theoretical bound, since it depends on the specific characteristics of the network used, the positions of the processors assigned to our job, the load of the whole system at the time and so on.
+
+However, taking the time from the broadcasting of \textbf{B} to the gathering of \textbf{C} in the master process, and subtracting $T_{\text{comp}}^0$, we get $T_{\text{comm}}$ for that specific execution of the algorithm. It is interesting to point out that the communication time obtained this way provides a lower bound on worst-case true communication time on the underlying system by the existential argument.

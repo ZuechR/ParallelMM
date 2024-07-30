@@ -1,0 +1,47 @@
+\section{Problem Definition}
+
+Matrix multiplication is a fundamental operation appearing in many problems across different fields, thus finding ways to speed-up its execution is a topic of great interest.
+
+The matrix multiplication problem is usually defined as follows:
+
+Given a matrix $\textbf{A}$ of size $MxN$ and a matrix $\textbf{B}$ of size $NxO$
+\[ \textbf{A} = \begin{pmatrix}
+    a_{0, 0} & a_{0, 1} & \cdots & a_{0, N-1} \\
+    a_{1, 0} & a_{1, 1} & \cdots & a_{1, N-1} \\
+    \vdots  & \vdots  & \ddots & \vdots  \\
+    a_{M-1, 0} & a_{M-1, 1} & \cdots & a_{M-1, N-1} 
+\end{pmatrix} \quad\quad \textbf{B} =
+\begin{pmatrix}
+    b_{0, 0} & b_{0, 1} & \cdots & b_{0, O-1} \\
+    b_{1, 0} & b_{1, 1} & \cdots & b_{2, O-1} \\
+    \vdots  & \vdots  & \ddots & \vdots  \\
+    b_{N-1, 0} & b_{N-1, 1} & \cdots & b_{N-1, O-1} 
+\end{pmatrix} \]
+let $\textbf{C} = \textbf{AB}$ be the matrix of size $MxO$:
+\[ \textbf{C} = \begin{pmatrix}
+    c_{0, 0} & c_{0, 1} & \cdots & c_{0, O-1} \\
+    c_{1, 0} & c_{1, 1} & \cdots & c_{1, O-1} \\
+    \vdots  & \vdots  & \ddots & \vdots  \\
+    c_{M-1, 0} & c_{M-1, 1} & \cdots & c_{M-1, O-1} 
+\end{pmatrix} \quad\quad \text{such that:  }
+c_{i, j} = \sum_{k=0}^{N - 1} a_{i, k}b_{k, j} \]
+
+\subsection{Sequential algorithm}
+As the sequential algorithm, we adopted the straightforward algorithm descending from the above definition (with the addition of a few useful tricks).
+Essentially, our algorithm performs the computation of $\textbf{C}$ element per element, in row-major order, by the above formula.
+
+Additionally, our implementation also includes the use of two techniques:
+\begin{itemize}
+    \item All the matrixes are stored as arrays, in particular as sequences of rows.
+    \item The algorithm is adapted to multiply matrix $\textbf{A}$ with the transpose $\textbf{B}^\top$ of matrix $\textbf{B}$.
+\end{itemize}
+The combination of these techniques is used in order to take advantage of the well-known cache mechanisms to allow for an overall faster execution compared to a matrix-centered approach.
+For the sake of brevity, the technical details of the sequential algorithm implementation are omitted from this report and can be found in the repository.
+
+The choice of this algorithm is motivated by the following points:
+\begin{itemize}
+    \item We wanted to solve the general case for any value of $M,N,O \in {\rm I\!R}^+$ such that $M,N,O > 0$. Faster algorithms exist for special cases, but we preferred to keep our study on the most generalizable case possible.
+    \item The general algorithm can easily and straightforwardly be reused in the parallelized version, as we will see later.
+\end{itemize}
+
+On a final note, it's easy to see that our algorithm always requires time $T_{\text{seq}} = \Theta(M\cdot N \cdot O)$.

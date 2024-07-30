@@ -1,0 +1,4 @@
+Parallel MM total time is 12083.212424 ms
+Parallel MM communication time is 274.243795 ms
+Parallel MM computation time is 11808.957869 ms
+Parallel MM communication + computation time is 12083.201664 ms

@@ -1,0 +1,72 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+ \geometry{
+ a4paper,
+ total={170mm,257mm},
+ left=20mm,
+ top=20mm,
+ }
+ \usepackage{graphicx}
+ \usepackage{titling}
+ \usepackage{amsmath}
+ 
+\usepackage{subcaption}
+
+\usepackage[backend=bibtex,style=ieee]{biblatex}
+\bibliography{bibliography}
+
+\usepackage{mathtools}
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+
+ \title{An approach to parallel Matrix Multiplication using MPI}
+\author{Riccardo Zuech}
+\date{July 2024}
+ 
+ \usepackage{fancyhdr}
+\fancypagestyle{plain}{%  the preset of fancyhdr 
+    \fancyhf{} % clear all header and footer fields
+    \fancyfoot[L]{\thedate}
+    \fancyfoot[R]{Repository: https://github.com/ZuechR/ParallelMM}
+    \fancyhead[L]{Parallel Computing Laboratory Project}
+    \fancyhead[R]{\theauthor}
+}
+\makeatletter
+\def\@maketitle{%
+  \newpage
+  \null
+  \vskip 1em%
+  \begin{center}%
+  \let \footnote \thanks
+    {\LARGE \@title \par}%
+    \vskip 1em%
+    %{\large \@date}%
+  \end{center}%
+  \par
+  \vskip 1em}
+\makeatother
+
+\usepackage{lipsum}  
+\usepackage{cmbright}
+
+\begin{document}
+
+\maketitle
+
+{
+\centering
+\begin{tabular}{@{}ll}
+    Student & \theauthor:  2128872\\
+    Teachers& Gianfranco Bilardi\\
+ &Paolo Emilio Mazzon\\\end{tabular}
+\par}
+
+\input{intro}
+\input{parallel}
+\input{results}
+\input{conclusions}
+
+\printbibliography[heading=bibintoc]
+
+\end{document}
