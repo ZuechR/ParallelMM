@@ -1,95 +1,70 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
-const int MASTER = 0;
+#include "utils.h"
 
-void printMatrixVector(const int rows, const int columns, int v[])
-{
-    for(int i = 0; i < rows; i++)
-    {
-        for(int j = 0; j < columns; j++)
-        {
-            printf("%d ", v[i*columns+j]);
-        }
-        printf("\n");
-    }
-}
-
-void populateMatrixAsVector(const int rows, const int columns, int v[])
-{
-    for(int i = 0; i < rows; i++)
-        for(int j = 0; j < columns; j++)
-        {
-            const short sign = rand() % 2 == 0 ? -1 : 1; // produce a random sign
-            v[i*columns + j] = sign * (rand() % 100);
-        }
-    // printMatrixVector(rows, columns, v);
-}
-
-void matrix_transpose(int rows, int columns, int B[], int BT[]) {
-    for(int i = 0; i < rows; i++)
-    {
-        for(int j = 0; j < columns; j++)
-        {
-            BT[i + j*rows] = B[i*columns + j];
-        }
-    }
-    // printMatrixVector(columns, rows, BT);
-}
-
-
-void sequentialTransposeMM(const int M, const int N, const int O, int A[], int BT[], int C[])
-{
-    for (int i = 0; i < M; i++) {
-        for (int j = 0; j < O; j++) {
-            int sum = 0;
-            for (int k = 0; k < N; k++) {
-                sum += A[i*N + k] * BT[j*N + k];
-            }
-            C[i * O + j] = sum;
-        }
-    }
-}
-
-int main(int argc, char **argv) {
-    if(argc < 4)
-    {
-        printf("Wrong arguments! Should be M, N, O.");
+int main(int argc, char** argv) {
+    if (argc < 4) {
+        printf("Wrong arguments! Should be M, N, O [seed].");
         return -1;
     }
 
-    int M = atoi(argv[1]);
-    int N = atoi(argv[2]);
-    int O = atoi(argv[3]);
+    // Parse dimensions
+    int dim_M = atoi(argv[1]);
+    int dim_N = atoi(argv[2]);
+    int dim_O = atoi(argv[3]);
+    // The same seed guarantees the same matrices across runs and across parallel/sequential executables
+    unsigned int seed = argc > 4 ? (unsigned int)atoi(argv[4]) : (unsigned int)time(NULL);
+
+    assert(dim_M > 0);
+    assert(dim_N > 0);
+    assert(dim_O > 0);
 
     // Define matrixes
-    int* A = (int*)malloc(M*N*sizeof(int));
-    int* BT = (int*)malloc(N*O*sizeof(int)); // B transposed
+    int* mat_A = (int*)malloc(dim_M * dim_N * sizeof(int));
+    int* mat_B = (int*)malloc(dim_N * dim_O * sizeof(int));
+    int* mat_BT = (int*)malloc(dim_N * dim_O * sizeof(int));  // B transposed
 
-    // printf("M %d, N %d, O %d, \n", M, N, O);
-    int* B = (int*)malloc(N*O*sizeof(int));
-    // printf("\nMatrix A of size %d x %d: \n", M, N);
-    populateMatrixAsVector(M, N, A);
-    // printf("\nMatrix B of size %d x %d: \n", N, O);
-    populateMatrixAsVector(N, O, B);
-    // printf("\nMatrix BT of size %d x %d: \n", O, N);
-    matrix_transpose(N, O, B, BT);
-    free(B);
+    // Populate Matrices
+    srand(seed);
+    populate_matrix_as_vector(dim_M, dim_N, mat_A);
+    populate_matrix_as_vector(dim_N, dim_O, mat_B);
 
-    int* C = (int*)malloc(M*O*sizeof(int));
+    // printf("--- MATRIX A ---\n");
+    // print_matrix_vector(dim_M, dim_N, mat_A);
+    // printf("--- MATRIX B ---\n");
+    // print_matrix_vector(dim_N, dim_O, mat_B);
 
-    double start, end;
-    start = clock();
-    sequentialTransposeMM(M, N, O, A, BT, C);
-    end = clock();
-    // printf("\nMatrix C of size %d x %d: \n", M, O);
-    // printMatrixVector(M, O, C);
-    printf("Sequential MM computation time is %.3f ms\n", ((double) (end - start)) * 1000 / CLOCKS_PER_SEC);
+    // Transpose B
+    // TODO: Unless we are measuring also the transpose time (which we currently aren't) we could assume B is already the transposed version
+    matrix_transpose(dim_N, dim_O, mat_B, mat_BT);
+    free(mat_B);
+
+    // Allocate space for C
+    int* mat_C = (int*)malloc(dim_M * dim_O * sizeof(int));
+
+    // Measuring time
+    struct timespec start_time;
+    struct timespec end_time;
+
+    // Matrix multiplication sequential computation
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    sequential_transposed_MM(dim_M, dim_N, dim_O, mat_A, mat_BT, mat_C);
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+    // printf("--- MATRIX C ---\n");
+    // print_matrix_vector(dim_M, dim_O, mat_C);
+
+    // Print elapsed time
+    double elapsed_ms = ((end_time.tv_sec - start_time.tv_sec) * 1e3) + ((end_time.tv_nsec - start_time.tv_nsec) / 1e6);
+    printf("Sequential MM computation time is               %10.3f ms\n", elapsed_ms);
 
     // CLEAN-UP
-    free(A);
-    free(BT);
-    free(C);
+    free(mat_A);
+    free(mat_BT);
+    free(mat_C);
+
     return 0;
 }

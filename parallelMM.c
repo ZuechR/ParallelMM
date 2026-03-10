@@ -1,126 +1,91 @@
+#include <assert.h>
+#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <mpi.h>
+#include <time.h>
+
+#include "utils.h"
 
 const int MASTER = 0;
 
-void printMatrixVector(const int rows, const int columns, int v[])
-{
-    for(int i = 0; i < rows; i++)
-    {
-        for(int j = 0; j < columns; j++)
-        {
-            printf("%d ", v[i*columns+j]);
-        }
-        printf("\n");
-    }
-}
+/**
+ * This gets executed by every process
+ *
+ * @param rank is the rank (id) of the process
+ * @param n_processes is the number of processes running
+ * ...
+ */
+void parallel_MM(int rank, int n_processes, unsigned int dim_M, unsigned int dim_N, unsigned int dim_O, int mat_A[], int mat_BT[], int mat_C[]) {
+    // Storing time points for time tracking
+    double start_total_time, start_comm_time, start_comp_time, start_gather_time, end_time;
 
-void populateMatrixAsVector(const int rows, const int columns, int v[])
-{
-    for(int i = 0; i < rows; i++)
-        for(int j = 0; j < columns; j++)
-        {
-            const short sign = rand() % 2 == 0 ? -1 : 1; // produce a random sign
-            v[i*columns + j] = sign * (rand() % 100);
-        }
-    // printMatrixVector(rows, columns, v);
-}
+    start_total_time = MPI_Wtime();
 
-void matrix_transpose(int rows, int columns, int B[], int BT[]) {
-    for(int i = 0; i < rows; i++)
-    {
-        for(int j = 0; j < columns; j++)
-        {
-            BT[i + j*rows] = B[i*columns + j];
-        }
-    }
-    // printMatrixVector(columns, rows, BT);
-}
-
-
-void sequentialTransposeMM(const int M, const int N, const int O, int A[], int BT[], int C[])
-{
-    for (int i = 0; i < M; i++) {
-        for (int j = 0; j < O; j++) {
-            int sum = 0;
-            for (int k = 0; k < N; k++) {
-                sum += A[i*N + k] * BT[j*N + k];
-            }
-            C[i * O + j] = sum;
-        }
-    }
-}
-
-void parallel_mult(int rank, int size, int M, int N, int O, int A[], int BT[], int C[])
-{
-    double sTotal, eTotal, sComm, sComp, eComp;
-    sTotal = MPI_Wtime();
-
-    // Definition of the number of rows of A (and C) assigned to each process as the vector rows, as well as the counts
-    // and displacements vectors definitions
+    // Helpers definitions
+    // rows[rank] = # of rows of A (and C) this process handles
+    // counts{A,C}[rank] = # of values of A (or C) this process handles
+    // displs{A,C}[rank] = offset of this processes values in A (or C)
     // Recall that the idea is to assign at each process p a set of adjacent rows A_p of A and gather from it (into the
     // master) a set of adjacent rows C_p of C.
-    int rows[size], countsA[size], displsA[size], countsC[size], displsC[size];
+    int rows[n_processes], counts_A[n_processes], displs_A[n_processes], counts_C[n_processes], displs_C[n_processes];
 
-    // if M%size == 0, then it is divisible and rows[i] is always M/size
-    // Otherwise (M/size + 1) to the the first M % size processes and (int) M/size to the others
-    int frac = M/size;
-    for (int i = 0; i < size; i++)
-    {
-        if (M % size == 0)
-            rows[i] = frac;
-        else
-            rows[i] = i < M % size ? frac + 1 : frac;
-        // counts and displs for A
-        countsA[i] = rows[i] * N;
-        displsA[i] = i > 0 ? countsA[i - 1] + displsA[i - 1] : 0;
-        // counts and displs for C
-        countsC[i] = rows[i] * O;
-        displsC[i] = i > 0 ? countsC[i - 1] + displsC[i - 1] : 0;
+    // If (M % n_processes) == 0, then it is divisible and rows[i] is always M/n_processes
+    // Otherwise (M/n_processes + 1) to the the first (M % n_processes) processes and (int, truncated so it's a floor operation) M/n_processes to
+    // the others
+    const unsigned int frac = dim_M / n_processes;
+    for (unsigned int i = 0; i < n_processes; i++) {
+        // If M % n_processes == 0, then i < 0 is never true, so it will always assign frac to rows[i]
+        rows[i] = i < (dim_M % n_processes) ? frac + 1 : frac;
+
+        // counts and displs for A and C
+        counts_A[i] = rows[i] * dim_N;
+        counts_C[i] = rows[i] * dim_O;
+        displs_A[i] = i > 0 ? counts_A[i - 1] + displs_A[i - 1] : 0;
+        displs_C[i] = i > 0 ? counts_C[i - 1] + displs_C[i - 1] : 0;
     }
 
-    // Scatter A from the master to all other processes as sets of adjacent rows A_p
+    // Scatter A and C from the master to all other processes as sets of adjacent rows A_p and C_p
+    int A_p_size = counts_A[rank];
+    int C_p_size = A_p_size / dim_N * dim_O;
+    assert(A_p_size > 0);   // This in teory never happens given the guard in main (n_processes > dim_M)
+    assert(C_p_size > 0);
+    int* A_p = (int*)malloc(A_p_size * sizeof(int));
+    int* C_p = (int*)malloc(C_p_size * sizeof(int));
 
-    int A_p_size = countsA[rank]; // the size of A_p follows from above
-    int* A_p = (int*)malloc(A_p_size * sizeof(int)); // buffer used to store the portion of A recived from the master
-
-    int C_p_size = A_p_size/N * O;
-    int* C_p = (int*)malloc(C_p_size * sizeof(int)); // buffer used to store C_p
-
-    sComm = MPI_Wtime();
+    start_comm_time = MPI_Wtime();
 
     // Broadcast BT from the master to all other processes
-    MPI_Bcast(BT, N*O, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(mat_BT, dim_N * dim_O, MPI_INT, 0, MPI_COMM_WORLD);
 
     // Scattering of A rows into sets of adjacents rows to each process
-    MPI_Scatterv(A,	countsA, displsA, MPI_INT, A_p, countsA[rank], MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatterv(mat_A, counts_A, displs_A, MPI_INT, A_p, counts_A[rank], MPI_INT, 0, MPI_COMM_WORLD);
 
-    sComp = MPI_Wtime();
+    start_comp_time = MPI_Wtime();
 
-    // Compute C_p as the product of A_p and B (BT since we use the transposed algorithm)
-    sequentialTransposeMM(rows[rank], N, O, A_p, BT, C_p);
+    // Compute C_p as the product of A_p and BT
+    sequential_transposed_MM(rows[rank], dim_N, dim_O, A_p, mat_BT, C_p);
 
-    eComp = MPI_Wtime();
+    start_gather_time = MPI_Wtime();
 
     // Gather all C_p from each process p into C in the master
-    MPI_Gatherv(C_p, C_p_size, MPI_INT, C, countsC, displsC, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Gatherv(C_p, C_p_size, MPI_INT, mat_C, counts_C, displs_C, MPI_INT, 0, MPI_COMM_WORLD);
 
-    eTotal = MPI_Wtime();
+    end_time = MPI_Wtime();
 
-    if(rank == MASTER)
-    {
-        // Total time for the process to execute on the master
-        printf("Parallel MM total time is %f ms\n", (eTotal - sTotal) * 1.e3);
-
+    // If we're the master process we need to print the results
+    if (rank == MASTER) {
         // Communication time
-        printf("Parallel MM communication time is %f ms\n", ((sComp - sComm) + (eTotal - eComp)) * 1.e3);
+        printf("Parallel MM communication time is               %10.3f ms\n",
+               ((start_comp_time - start_comm_time) + (end_time - start_gather_time)) * 1.e3);
 
         // Computation time
-        printf("Parallel MM computation time is %f ms\n", (eComp - sComp) * 1.e3);
+        printf("Parallel MM computation time is                 %10.3f ms\n", (start_gather_time - start_comp_time) * 1.e3);
 
         // Communication + computation time
-        printf("Parallel MM communication + computation time is %f ms\n", (eTotal - sComm) * 1.e3);
+        printf("Parallel MM communication + computation time is %10.3f ms\n", (end_time - start_comm_time) * 1.e3);
+
+        // Total time for the process to execute on the master
+        printf("Parallel MM total time is                       %10.3f ms\n", (end_time - start_total_time) * 1.e3);
     }
 
     // CLEAN-UP
@@ -128,77 +93,87 @@ void parallel_mult(int rank, int size, int M, int N, int O, int A[], int BT[], i
     free(C_p);
 }
 
-/* The general idea is to define master and slave processes, where the master has the role to initialize matrix A and B,
+/**
+ * The general idea is to define master and slave processes, where the master has the role to initialize matrix A and B,
  * in order to then distribute the computation over the other processes.
  */
-
-int main(int argc, char **argv) {
-    if(argc < 4)
-    {
-        printf("Wrong arguments! Should be M, N, O.");
+int main(int argc, char** argv) {
+    if (argc < 4) {
+        printf("Wrong arguments! Should be M, N, O [seed].");
         return -1;
     }
 
-    int rank, size;
-	MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    // Get process_rank and n_processes
+    int process_rank, n_processes;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &n_processes);
+    MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
 
-    int M = atoi(argv[1]);
-    int N = atoi(argv[2]);
-    int O = atoi(argv[3]);
+    // Parse dimensions
+    int dim_M = atoi(argv[1]);
+    int dim_N = atoi(argv[2]);
+    int dim_O = atoi(argv[3]);
+    // The same seed guarantees the same matrices across runs and across parallel/sequential executables
+    unsigned int seed = argc > 4 ? (unsigned int)atoi(argv[4]) : (unsigned int)time(NULL);
+
+    assert(dim_M > 0);
+    assert(dim_N > 0);
+    assert(dim_O > 0);
+
+    // Prevent that the scatter creates processes with no rows (malloc and MPI_Scatterv/Gatherv behaviours with size 0 are undefined)
+    if (n_processes > dim_M) {
+        if (process_rank == MASTER) fprintf(stderr, "Error: n_processes (%d) > dim_M (%d)\n", n_processes, dim_M);
+        MPI_Finalize();
+        return MPI_ERR_ARG;
+    }
 
     // Define matrixes
-    int* A = (int*)malloc(M*N*sizeof(int));
-    int* BT = (int*)malloc(N*O*sizeof(int)); // B transposed
+    int* mat_A = (int*)malloc(dim_M * dim_N * sizeof(int));
+    int* mat_BT = (int*)malloc(dim_N * dim_O * sizeof(int));  // B transposed
 
-    if(rank == MASTER)
-    {
-        // printf("M %d, N %d, O %d, \n", M, N, O);
-        int* B = (int*)malloc(N*O*sizeof(int));
-        // printf("\nMatrix A of size %d x %d: \n", M, N);
-        populateMatrixAsVector(M, N, A);
-        // printf("\nMatrix B of size %d x %d: \n", N, O);
-        populateMatrixAsVector(N, O, B);
+    // If this is the master we need to populate the matrices
+    if (process_rank == MASTER) {
+        int* mat_B = (int*)malloc(dim_N * dim_O * sizeof(int));
 
-        // printf("\nMatrix BT of size %d x %d: \n", O, N);
-        matrix_transpose(N, O, B, BT);
-        free(B);
+        // Populate Matrices
+        srand(seed);
+        populate_matrix_as_vector(dim_M, dim_N, mat_A);
+        populate_matrix_as_vector(dim_N, dim_O, mat_B);
+
+        // printf("--- MATRIX A ---\n");
+        // print_matrix_vector(dim_M, dim_N, mat_A);
+        // printf("--- MATRIX B ---\n");
+        // print_matrix_vector(dim_N, dim_O, mat_B);
+
+        // Transpose B
+        // TODO: Unless we are measuring also the transpose time (which we currently aren't) we could assume B is already the transposed version
+        matrix_transpose(dim_N, dim_O, mat_B, mat_BT);
+        free(mat_B);
     }
 
-    int* C = (int*)malloc(M*O*sizeof(int));
+    // Allocate space for C
+    int* mat_C = (int*)malloc(dim_M * dim_O * sizeof(int));
 
-    // PARALLEL EXECUTION
-    parallel_mult(rank, size, M, N, O, A, BT, C);
+    // Matrix multiplication parallel computation (this also prints elapsed times)
+    parallel_MM(process_rank, n_processes, dim_M, dim_N, dim_O, mat_A, mat_BT, mat_C);
 
-    /*
-    if(rank == MASTER)
-    {
-        printf("\nMatrix C of size %d x %d: \n", M, O);
-        printMatrixVector(M, O, C);
+    if (process_rank == MASTER) {
+        // printf("--- MATRIX C ---\n");
+        // print_matrix_vector(dim_M, dim_O, mat_C);
+
+        // Integrity check on the result
+        int* check_C = (int*)malloc(dim_M * dim_O * sizeof(int));
+        sequential_transposed_MM(dim_M, dim_N, dim_O, mat_A, mat_BT, check_C);
+        for (unsigned int i = 0; i < dim_M * dim_O; i++) {
+            assert(mat_C[i] == check_C[i]);
+        }
+        free(check_C);
     }
-
-    // SEQUENTIAL EXECUTION
-
-    if(rank == MASTER)
-    {
-        double start, end;
-        int firstEl = C[0];
-        start = MPI_Wtime();
-        sequentialTransposeMM(M, N, O, A, BT, C);
-        end = MPI_Wtime();
-        // printf("\nMatrix C of size %d x %d: \n", M, O);
-        // printMatrixVector(M, O, C);
-        printf("\nSequential MM computation time is %f ms\n", (end - start) * 1.e6);
-        if(firstEl != C[0])
-            printf("Something went wrong! Sequential and parallel results do not match!");
-    }
-    */
 
     // CLEAN-UP
-    free(A);
-    free(BT);
-    free(C);
-    MPI_Finalize();
-    return 0;
+    free(mat_A);
+    free(mat_BT);
+    free(mat_C);
+
+    return MPI_Finalize();
 }
