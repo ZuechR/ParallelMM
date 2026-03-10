@@ -64,11 +64,11 @@ int main(int argc, char **argv) {
     int O = atoi(argv[3]);
 
     // Define matrixes
-    int* A = malloc(M*N*sizeof(int));
-    int* BT = malloc(N*O*sizeof(int)); // B transposed
+    int* A = (int*)malloc(M*N*sizeof(int));
+    int* BT = (int*)malloc(N*O*sizeof(int)); // B transposed
 
     // printf("M %d, N %d, O %d, \n", M, N, O);
-    int* B = malloc(N*O*sizeof(int));
+    int* B = (int*)malloc(N*O*sizeof(int));
     // printf("\nMatrix A of size %d x %d: \n", M, N);
     populateMatrixAsVector(M, N, A);
     // printf("\nMatrix B of size %d x %d: \n", N, O);
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
     matrix_transpose(N, O, B, BT);
     free(B);
 
-    int* C = malloc(M*O*sizeof(int));
+    int* C = (int*)malloc(M*O*sizeof(int));
 
     double start, end;
     start = clock();

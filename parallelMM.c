@@ -74,19 +74,19 @@ void parallel_mult(int rank, int size, int M, int N, int O, int A[], int BT[], i
             rows[i] = i < M % size ? frac + 1 : frac;
         // counts and displs for A
         countsA[i] = rows[i] * N;
-        displsA[i] = i > 0 ? countsA[i] + displsA[i - 1] : 0;
+        displsA[i] = i > 0 ? countsA[i - 1] + displsA[i - 1] : 0;
         // counts and displs for C
         countsC[i] = rows[i] * O;
-        displsC[i] = i > 0 ? countsC[i] + displsC[i - 1] : 0;
+        displsC[i] = i > 0 ? countsC[i - 1] + displsC[i - 1] : 0;
     }
 
     // Scatter A from the master to all other processes as sets of adjacent rows A_p
 
     int A_p_size = countsA[rank]; // the size of A_p follows from above
-    int* A_p = malloc(A_p_size * sizeof(int)); // buffer used to store the portion of A recived from the master
+    int* A_p = (int*)malloc(A_p_size * sizeof(int)); // buffer used to store the portion of A recived from the master
 
     int C_p_size = A_p_size/N * O;
-    int* C_p = malloc(C_p_size * sizeof(int)); // buffer used to store C_p
+    int* C_p = (int*)malloc(C_p_size * sizeof(int)); // buffer used to store C_p
 
     sComm = MPI_Wtime();
 
@@ -149,13 +149,13 @@ int main(int argc, char **argv) {
     int O = atoi(argv[3]);
 
     // Define matrixes
-    int* A = malloc(M*N*sizeof(int));
-    int* BT = malloc(N*O*sizeof(int)); // B transposed
+    int* A = (int*)malloc(M*N*sizeof(int));
+    int* BT = (int*)malloc(N*O*sizeof(int)); // B transposed
 
     if(rank == MASTER)
     {
         // printf("M %d, N %d, O %d, \n", M, N, O);
-        int* B = malloc(N*O*sizeof(int));
+        int* B = (int*)malloc(N*O*sizeof(int));
         // printf("\nMatrix A of size %d x %d: \n", M, N);
         populateMatrixAsVector(M, N, A);
         // printf("\nMatrix B of size %d x %d: \n", N, O);
@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
         free(B);
     }
 
-    int* C = malloc(M*O*sizeof(int));
+    int* C = (int*)malloc(M*O*sizeof(int));
 
     // PARALLEL EXECUTION
     parallel_mult(rank, size, M, N, O, A, BT, C);
