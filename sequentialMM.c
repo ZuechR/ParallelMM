@@ -38,28 +38,34 @@ int main(int argc, char** argv) {
     // print_matrix_vector(dim_N, dim_O, mat_B);
 
     // Transpose B
-    // TODO: Unless we are measuring also the transpose time (which we currently aren't) we could assume B is already the transposed version
+    struct timespec start_time_TR;
+    struct timespec end_time_TR;
+
+    clock_gettime(CLOCK_MONOTONIC, &start_time_TR);
     matrix_transpose(dim_N, dim_O, mat_B, mat_BT);
+    clock_gettime(CLOCK_MONOTONIC, &end_time_TR);
     free(mat_B);
 
     // Allocate space for C
     int* mat_C = (int*)malloc(dim_M * dim_O * sizeof(int));
 
     // Measuring time
-    struct timespec start_time;
-    struct timespec end_time;
+    struct timespec start_time_MM;
+    struct timespec end_time_MM;
 
     // Matrix multiplication sequential computation
-    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    clock_gettime(CLOCK_MONOTONIC, &start_time_MM);
     sequential_transposed_MM(dim_M, dim_N, dim_O, mat_A, mat_BT, mat_C);
-    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    clock_gettime(CLOCK_MONOTONIC, &end_time_MM);
 
     // printf("--- MATRIX C ---\n");
     // print_matrix_vector(dim_M, dim_O, mat_C);
 
     // Print elapsed time
-    double elapsed_ms = ((end_time.tv_sec - start_time.tv_sec) * 1e3) + ((end_time.tv_nsec - start_time.tv_nsec) / 1e6);
-    printf("Sequential MM computation time is               %10.3f ms\n", elapsed_ms);
+    double elapsed_ms_TR = ((end_time_TR.tv_sec - start_time_TR.tv_sec) * 1e3) + ((end_time_TR.tv_nsec - start_time_TR.tv_nsec) / 1e6);
+    double elapsed_ms_MM = ((end_time_MM.tv_sec - start_time_MM.tv_sec) * 1e3) + ((end_time_MM.tv_nsec - start_time_MM.tv_nsec) / 1e6);
+    printf("Sequential transposition time is                %10.3f ms\n", elapsed_ms_TR);
+    printf("Sequential MM computation time is               %10.3f ms\n", elapsed_ms_MM);
 
     // CLEAN-UP
     free(mat_A);

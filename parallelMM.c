@@ -47,7 +47,7 @@ void parallel_MM(int rank, int n_processes, unsigned int dim_M, unsigned int dim
     // Scatter A and C from the master to all other processes as sets of adjacent rows A_p and C_p
     int A_p_size = counts_A[rank];
     int C_p_size = A_p_size / dim_N * dim_O;
-    assert(A_p_size > 0);   // This in teory never happens given the guard in main (n_processes > dim_M)
+    assert(A_p_size > 0);  // This in teory never happens given the guard in main (n_processes > dim_M)
     assert(C_p_size > 0);
     int* A_p = (int*)malloc(A_p_size * sizeof(int));
     int* C_p = (int*)malloc(C_p_size * sizeof(int));
@@ -146,9 +146,16 @@ int main(int argc, char** argv) {
         // print_matrix_vector(dim_N, dim_O, mat_B);
 
         // Transpose B
-        // TODO: Unless we are measuring also the transpose time (which we currently aren't) we could assume B is already the transposed version
+        struct timespec start_time_TR;
+        struct timespec end_time_TR;
+
+        clock_gettime(CLOCK_MONOTONIC, &start_time_TR);
         matrix_transpose(dim_N, dim_O, mat_B, mat_BT);
+        clock_gettime(CLOCK_MONOTONIC, &end_time_TR);
         free(mat_B);
+
+        double elapsed_ms_TR = ((end_time_TR.tv_sec - start_time_TR.tv_sec) * 1e3) + ((end_time_TR.tv_nsec - start_time_TR.tv_nsec) / 1e6);
+        printf("Sequential transposition time is                %10.3f ms\n", elapsed_ms_TR);
     }
 
     // Allocate space for C
