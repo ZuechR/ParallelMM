@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-
+#include <omp.h>
 #include "utils.h"
 
 const int MASTER = 0;
@@ -17,9 +17,14 @@ const int MASTER = 0;
  */
 void parallel_MM(int rank, int n_processes, unsigned int dim_M, unsigned int dim_N, unsigned int dim_O, int mat_A[], int mat_BT[], int mat_C[]) {
     // Storing time points for time tracking
-    double start_total_time, start_comm_time, start_comp_time, start_gather_time, end_time;
+   
+    double total_start, comm_start, comp_start, gather_start, total_end;
+    double local_comm, local_comp, local_total;
+    double max_comm, max_comp, max_total;
 
-    start_total_time = MPI_Wtime();
+    MPI_Barrier(MPI_COMM_WORLD);
+    total_start = MPI_Wtime();
+    comm_start = MPI_Wtime();
 
     // Helpers definitions
     // rows[rank] = # of rows of A (and C) this process handles
@@ -27,7 +32,14 @@ void parallel_MM(int rank, int n_processes, unsigned int dim_M, unsigned int dim
     // displs{A,C}[rank] = offset of this processes values in A (or C)
     // Recall that the idea is to assign at each process p a set of adjacent rows A_p of A and gather from it (into the
     // master) a set of adjacent rows C_p of C.
-    int rows[n_processes], counts_A[n_processes], displs_A[n_processes], counts_C[n_processes], displs_C[n_processes];
+
+    // int rows[n_processes], counts_A[n_processes], displs_A[n_processes], counts_C[n_processes], displs_C[n_processes];
+
+    unsigned int *rows = malloc(n_processes * sizeof(unsigned int));
+    unsigned int *counts_A = malloc(n_processes * sizeof(unsigned int));
+    unsigned int *displs_A = malloc(n_processes * sizeof(unsigned int));
+    unsigned int *counts_C = malloc(n_processes * sizeof(unsigned int));
+    unsigned int *displs_C = malloc(n_processes * sizeof(unsigned int));
 
     // If (M % n_processes) == 0, then it is divisible and rows[i] is always M/n_processes
     // Otherwise (M/n_processes + 1) to the the first (M % n_processes) processes and (int, truncated so it's a floor operation) M/n_processes to
@@ -60,37 +72,45 @@ void parallel_MM(int rank, int n_processes, unsigned int dim_M, unsigned int dim
     // Scattering of A rows into sets of adjacents rows to each process
     MPI_Scatterv(mat_A, counts_A, displs_A, MPI_INT, A_p, counts_A[rank], MPI_INT, 0, MPI_COMM_WORLD);
 
-    start_comp_time = MPI_Wtime();
+    comp_start = MPI_Wtime();
 
     // Compute C_p as the product of A_p and BT
-    sequential_transposed_MM(rows[rank], dim_N, dim_O, A_p, mat_BT, C_p);
+    omp_transposed_MM(rows[rank], dim_N, dim_O, A_p, mat_BT, C_p);
 
-    start_gather_time = MPI_Wtime();
+    gather_start = MPI_Wtime();
 
     // Gather all C_p from each process p into C in the master
     MPI_Gatherv(C_p, C_p_size, MPI_INT, mat_C, counts_C, displs_C, MPI_INT, 0, MPI_COMM_WORLD);
 
-    end_time = MPI_Wtime();
+    total_end = MPI_Wtime();
 
+    local_comm = (comp_start - comm_start) + (total_end - gather_start);
+    local_comp = (gather_start - comp_start);
+    local_total = (total_end - total_start);
+
+    MPI_Reduce(&local_comm,  &max_comm,  1, MPI_DOUBLE, MPI_MAX, MASTER, MPI_COMM_WORLD);
+    MPI_Reduce(&local_comp,  &max_comp,  1, MPI_DOUBLE, MPI_MAX, MASTER, MPI_COMM_WORLD);
+    MPI_Reduce(&local_total, &max_total, 1, MPI_DOUBLE, MPI_MAX, MASTER, MPI_COMM_WORLD);
+    
     // If we're the master process we need to print the results
     if (rank == MASTER) {
-        // Communication time
-        printf("Parallel MM communication time is               %10.3f ms\n",
-               ((start_comp_time - start_comm_time) + (end_time - start_gather_time)) * 1.e3);
-
-        // Computation time
-        printf("Parallel MM computation time is                 %10.3f ms\n", (start_gather_time - start_comp_time) * 1.e3);
-
-        // Communication + computation time
-        printf("Parallel MM communication + computation time is %10.3f ms\n", (end_time - start_comm_time) * 1.e3);
-
-        // Total time for the process to execute on the master
-        printf("Parallel MM total time is                       %10.3f ms\n", (end_time - start_total_time) * 1.e3);
+        printf("MPI processes: %d\n", n_processes);
+        printf("OpenMP threads per process: %d\n", omp_get_max_threads());
+        printf("Matrix dimensions: M=%d, N=%d, O=%d\n", dim_M, dim_N, dim_O);
+        printf("Parallel MM communication time is               %10.3f ms\n", max_comm * 1.e3);
+        printf("Parallel MM computation time is                 %10.3f ms\n", max_comp * 1.e3);
+        printf("Parallel MM communication + computation time is %10.3f ms\n", (max_comm + max_comp) * 1.e3);
+        printf("Parallel MM total time is                       %10.3f ms\n", max_total * 1.e3);
     }
 
     // CLEAN-UP
     free(A_p);
     free(C_p);
+    free(rows);
+    free(counts_A);
+    free(displs_A);
+    free(counts_C);
+    free(displs_C);
 }
 
 /**

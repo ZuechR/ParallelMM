@@ -1,5 +1,6 @@
 .vscode
 .clangd
 compile_flags.txt
-parallelMM
-sequentialMM
+/build
+# parallelMM
+# sequentialMM

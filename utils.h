@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <omp.h>
 
 /**
  * Prints to stdout the matrix
@@ -41,6 +42,27 @@ void matrix_transpose(unsigned int rows, unsigned int columns, int mat[], int ma
  * Compute the matrix multiplication between A and an already transposed B
  */
 void sequential_transposed_MM(const unsigned int dim_M, const unsigned int dim_N, const unsigned int dim_O, int mat_A[], int mat_BT[], int mat_C[]) {
+    for (unsigned int i = 0; i < dim_M; i++) {
+        for (unsigned int j = 0; j < dim_O; j++) {
+            int sum = 0;
+            for (unsigned int k = 0; k < dim_N; k++) {
+                sum += mat_A[(i * dim_N) + k] * mat_BT[(j * dim_N) + k];
+            }
+            mat_C[(i * dim_O) + j] = sum;
+        }
+    }
+}
+
+// this function parallelizes the matrix multiplication using OpenMP.
+//  It is used in the parallel_MM function in parallelMM.c
+// with collpase(2) both loops are parallelized
+void omp_transposed_MM(const unsigned int dim_M,
+                       const unsigned int dim_N,
+                       const unsigned int dim_O,
+                       int mat_A[],
+                       int mat_BT[],
+                       int mat_C[]) {
+    #pragma omp parallel for collapse(2) schedule(static)
     for (unsigned int i = 0; i < dim_M; i++) {
         for (unsigned int j = 0; j < dim_O; j++) {
             int sum = 0;
