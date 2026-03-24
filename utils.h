@@ -73,3 +73,9 @@ void omp_transposed_MM(const unsigned int dim_M,
         }
     }
 }
+
+double elapsed_ms(struct timespec start, struct timespec end) {
+    double sec = end.tv_sec - start.tv_sec;
+    double nsec = end.tv_nsec - start.tv_nsec;
+    return sec * 1000.0 + nsec / 1e6;
+}

@@ -1,8 +1,8 @@
 #include <assert.h>
 #include <time.h>
-#include <chrono>
-#include <cstdio>
-#include <cstdlib>
+#include <stdio.h>
+#include <stdlib.h>
+#include <omp.h>
 
 #include "utils.h"
 
@@ -40,28 +40,26 @@ int main(int argc, char** argv) {
 
     // Transpose B
     // Transpose B
-    auto start_time_TR = std::chrono::steady_clock::now();
+    double start_time_TR = omp_get_wtime();
     matrix_transpose(dim_N, dim_O, mat_B, mat_BT);
-    auto end_time_TR = std::chrono::steady_clock::now();
+    double end_time_TR = omp_get_wtime();
     free(mat_B);
 
     // Allocate space for C
     int* mat_C = (int*)malloc(dim_M * dim_O * sizeof(int));
 
-    auto start_time_MM = std::chrono::steady_clock::now();
+    double start_time_MM = omp_get_wtime();
     sequential_transposed_MM(dim_M, dim_N, dim_O, mat_A, mat_BT, mat_C);
-    auto end_time_MM = std::chrono::steady_clock::now();
+    double end_time_MM = omp_get_wtime();
 
     // printf("--- MATRIX C ---\n");
     // print_matrix_vector(dim_M, dim_O, mat_C);
 
     // Print elapsed time
     // Convert to milliseconds
-    double elapsed_ms_TR =
-        std::chrono::duration<double, std::milli>(end_time_TR - start_time_TR).count();
+    double elapsed_ms_TR = (end_time_TR - start_time_TR) * 1e3;
 
-    double elapsed_ms_MM =
-        std::chrono::duration<double, std::milli>(end_time_MM - start_time_MM).count();
+    double elapsed_ms_MM = (end_time_MM - start_time_MM) * 1e3;
 
     printf("Sequential transposition time is                %10.3f ms\n", elapsed_ms_TR);
     printf("Sequential MM computation time is               %10.3f ms\n", elapsed_ms_MM);
