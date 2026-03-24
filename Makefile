@@ -1,6 +1,6 @@
 CC      := gcc
 MPICC   := mpicc
-CFLAGS  := -O3 -Wall -Wextra -std=c17
+CFLAGS  := -O3 -Wall -Wextra -std=c11
 OMPFLAG := -fopenmp
 
 BUILD_DIR := build

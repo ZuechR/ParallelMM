@@ -169,13 +169,13 @@ int main(int argc, char** argv) {
         struct timespec start_time_TR;
         struct timespec end_time_TR;
 
-        clock_gettime(CLOCK_MONOTONIC, &start_time_TR);
+        double start = omp_get_wtime();
         matrix_transpose(dim_N, dim_O, mat_B, mat_BT);
-        clock_gettime(CLOCK_MONOTONIC, &end_time_TR);
+        double end = omp_get_wtime();
         free(mat_B);
 
-        double elapsed_ms_TR = ((end_time_TR.tv_sec - start_time_TR.tv_sec) * 1e3) + ((end_time_TR.tv_nsec - start_time_TR.tv_nsec) / 1e6);
-        printf("Sequential transposition time is                %10.3f ms\n", elapsed_ms_TR);
+        double elapsed_ms = (end - start) * 1e3;
+        printf("Sequential transposition time is                %10.3f ms\n", elapsed_ms);
     }
 
     // Allocate space for C
