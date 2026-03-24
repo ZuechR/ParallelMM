@@ -24,7 +24,6 @@ void parallel_MM(int rank, int n_processes, unsigned int dim_M, unsigned int dim
 
     MPI_Barrier(MPI_COMM_WORLD);
     total_start = MPI_Wtime();
-    comm_start = MPI_Wtime();
 
     // Helpers definitions
     // rows[rank] = # of rows of A (and C) this process handles
@@ -64,7 +63,7 @@ void parallel_MM(int rank, int n_processes, unsigned int dim_M, unsigned int dim
     int* A_p = (int*)malloc(A_p_size * sizeof(int));
     int* C_p = (int*)malloc(C_p_size * sizeof(int));
 
-    start_comm_time = MPI_Wtime();
+    comm_start = MPI_Wtime();
 
     // Broadcast BT from the master to all other processes
     MPI_Bcast(mat_BT, dim_N * dim_O, MPI_INT, 0, MPI_COMM_WORLD);
