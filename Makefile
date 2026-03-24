@@ -19,7 +19,7 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(SEQ_BIN): $(SEQ_SRC) utils.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) $< -o $@
+	$(CC) $(CFLAGS) $(OMPFLAG) $< -o $@
 
 $(PAR_BIN): $(PAR_SRC) utils.h | $(BUILD_DIR)
 	$(MPICC) $(CFLAGS) $(OMPFLAG) $< -o $@
