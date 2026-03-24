@@ -15,7 +15,7 @@ const int MASTER = 0;
  * @param n_processes is the number of processes running
  * ...
  */
-void parallel_MM(int rank, int n_processes, unsigned int dim_M, unsigned int dim_N, unsigned int dim_O, int mat_A[], int mat_BT[], int mat_C[]) {
+void parallel_MM(int rank, int n_processes, int dim_M, int dim_N, int dim_O, int mat_A[], int mat_BT[], int mat_C[]) {
     // Storing time points for time tracking
    
     double total_start, comm_start, comp_start, gather_start, total_end;
@@ -34,17 +34,17 @@ void parallel_MM(int rank, int n_processes, unsigned int dim_M, unsigned int dim
 
     // int rows[n_processes], counts_A[n_processes], displs_A[n_processes], counts_C[n_processes], displs_C[n_processes];
 
-    unsigned int *rows = malloc(n_processes * sizeof(unsigned int));
-    unsigned int *counts_A = malloc(n_processes * sizeof(unsigned int));
-    unsigned int *displs_A = malloc(n_processes * sizeof(unsigned int));
-    unsigned int *counts_C = malloc(n_processes * sizeof(unsigned int));
-    unsigned int *displs_C = malloc(n_processes * sizeof(unsigned int));
+    int *rows = malloc(n_processes * sizeof(int));
+    int *counts_A = malloc(n_processes * sizeof(int));
+    int *displs_A = malloc(n_processes * sizeof(int));
+    int *counts_C = malloc(n_processes * sizeof(int));
+    int *displs_C = malloc(n_processes * sizeof(int));
 
     // If (M % n_processes) == 0, then it is divisible and rows[i] is always M/n_processes
     // Otherwise (M/n_processes + 1) to the the first (M % n_processes) processes and (int, truncated so it's a floor operation) M/n_processes to
     // the others
-    const unsigned int frac = dim_M / n_processes;
-    for (unsigned int i = 0; i < n_processes; i++) {
+    const int frac = dim_M / n_processes;
+    for (int i = 0; i < n_processes; i++) {
         // If M % n_processes == 0, then i < 0 is never true, so it will always assign frac to rows[i]
         rows[i] = i < (dim_M % n_processes) ? frac + 1 : frac;
 
@@ -165,9 +165,6 @@ int main(int argc, char** argv) {
         // print_matrix_vector(dim_N, dim_O, mat_B);
 
         // Transpose B
-        struct timespec start_time_TR;
-        struct timespec end_time_TR;
-
         double start = omp_get_wtime();
         matrix_transpose(dim_N, dim_O, mat_B, mat_BT);
         double end = omp_get_wtime();
@@ -190,7 +187,7 @@ int main(int argc, char** argv) {
         // Integrity check on the result
         int* check_C = (int*)malloc(dim_M * dim_O * sizeof(int));
         sequential_transposed_MM(dim_M, dim_N, dim_O, mat_A, mat_BT, check_C);
-        for (unsigned int i = 0; i < dim_M * dim_O; i++) {
+        for (int i = 0; i < dim_M * dim_O; i++) {
             assert(mat_C[i] == check_C[i]);
         }
         free(check_C);
