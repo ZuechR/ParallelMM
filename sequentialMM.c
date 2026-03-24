@@ -1,7 +1,8 @@
 #include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
 
 #include "utils.h"
 
@@ -38,32 +39,30 @@ int main(int argc, char** argv) {
     // print_matrix_vector(dim_N, dim_O, mat_B);
 
     // Transpose B
-    struct timespec start_time_TR;
-    struct timespec end_time_TR;
-
-    clock_gettime(CLOCK_MONOTONIC, &start_time_TR);
+    // Transpose B
+    auto start_time_TR = std::chrono::steady_clock::now();
     matrix_transpose(dim_N, dim_O, mat_B, mat_BT);
-    clock_gettime(CLOCK_MONOTONIC, &end_time_TR);
+    auto end_time_TR = std::chrono::steady_clock::now();
     free(mat_B);
 
     // Allocate space for C
     int* mat_C = (int*)malloc(dim_M * dim_O * sizeof(int));
 
-    // Measuring time
-    struct timespec start_time_MM;
-    struct timespec end_time_MM;
-
-    // Matrix multiplication sequential computation
-    clock_gettime(CLOCK_MONOTONIC, &start_time_MM);
+    auto start_time_MM = std::chrono::steady_clock::now();
     sequential_transposed_MM(dim_M, dim_N, dim_O, mat_A, mat_BT, mat_C);
-    clock_gettime(CLOCK_MONOTONIC, &end_time_MM);
+    auto end_time_MM = std::chrono::steady_clock::now();
 
     // printf("--- MATRIX C ---\n");
     // print_matrix_vector(dim_M, dim_O, mat_C);
 
     // Print elapsed time
-    double elapsed_ms_TR = ((end_time_TR.tv_sec - start_time_TR.tv_sec) * 1e3) + ((end_time_TR.tv_nsec - start_time_TR.tv_nsec) / 1e6);
-    double elapsed_ms_MM = ((end_time_MM.tv_sec - start_time_MM.tv_sec) * 1e3) + ((end_time_MM.tv_nsec - start_time_MM.tv_nsec) / 1e6);
+    // Convert to milliseconds
+    double elapsed_ms_TR =
+        std::chrono::duration<double, std::milli>(end_time_TR - start_time_TR).count();
+
+    double elapsed_ms_MM =
+        std::chrono::duration<double, std::milli>(end_time_MM - start_time_MM).count();
+
     printf("Sequential transposition time is                %10.3f ms\n", elapsed_ms_TR);
     printf("Sequential MM computation time is               %10.3f ms\n", elapsed_ms_MM);
 
